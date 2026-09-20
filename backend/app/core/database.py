@@ -8,24 +8,40 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 load_dotenv()
 
 
-DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
-DB_PORT = os.getenv("DB_PORT", "3306")
-DB_NAME = os.getenv("DB_NAME", "symptomlens_db")
-DB_USER = os.getenv("DB_USER", "symptomlens_app")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 
-if not DB_PASSWORD:
-    raise RuntimeError(
-        "DB_PASSWORD is missing from the .env file."
+if not DATABASE_URL:
+    DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+    DB_PORT = os.getenv("DB_PORT", "3306")
+    DB_NAME = os.getenv("DB_NAME", "symptomlens_db")
+    DB_USER = os.getenv("DB_USER", "symptomlens_app")
+    DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+
+    if not DB_PASSWORD:
+        raise RuntimeError(
+            "DB_PASSWORD is missing from the .env file."
+        )
+
+    DATABASE_URL = (
+        f"mysql+pymysql://"
+        f"{DB_USER}:{DB_PASSWORD}"
+        f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     )
 
 
-DATABASE_URL = (
-    f"mysql+pymysql://"
-    f"{DB_USER}:{DB_PASSWORD}"
-    f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace(
+        "postgres://",
+        "postgresql+psycopg2://",
+        1,
+    )
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace(
+        "postgresql://",
+        "postgresql+psycopg2://",
+        1,
+    )
 
 
 engine = create_engine(
@@ -53,4 +69,3 @@ def get_db():
         yield db
     finally:
         db.close()
-        
