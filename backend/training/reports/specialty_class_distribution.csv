@@ -1,0 +1,41 @@
+medical_specialty,count,percentage
+Surgery,1088,21.91
+Consult - History and Phy.,516,10.39
+Cardiovascular / Pulmonary,371,7.47
+Orthopedic,355,7.15
+Radiology,273,5.5
+General Medicine,259,5.22
+Gastroenterology,224,4.51
+Neurology,223,4.49
+SOAP / Chart / Progress Notes,166,3.34
+Urology,156,3.14
+Obstetrics / Gynecology,155,3.12
+Discharge Summary,108,2.17
+ENT - Otolaryngology,96,1.93
+Neurosurgery,94,1.89
+Hematology - Oncology,90,1.81
+Ophthalmology,83,1.67
+Nephrology,81,1.63
+Emergency Room Reports,75,1.51
+Pediatrics - Neonatal,70,1.41
+Pain Management,61,1.23
+Psychiatry / Psychology,53,1.07
+Office Notes,50,1.01
+Podiatry,47,0.95
+Dermatology,29,0.58
+Dentistry,27,0.54
+Cosmetic / Plastic Surgery,27,0.54
+Letters,23,0.46
+Physical Medicine - Rehab,21,0.42
+Sleep Medicine,20,0.4
+Endocrinology,19,0.38
+Bariatrics,18,0.36
+IME-QME-Work Comp etc.,16,0.32
+Chiropractic,14,0.28
+Rheumatology,10,0.2
+Diets and Nutritions,10,0.2
+Speech - Language,9,0.18
+Lab Medicine - Pathology,8,0.16
+Autopsy,8,0.16
+Allergy / Immunology,7,0.14
+Hospice - Palliative Care,6,0.12

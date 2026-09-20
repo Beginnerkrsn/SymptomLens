@@ -1,0 +1,2 @@
+model,accuracy,macro_f1,weighted_f1
+Bio_ClinicalBERT embeddings + Logistic Regression,0.3679890560875513,0.412847620427566,0.33902650087262304

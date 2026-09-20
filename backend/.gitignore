@@ -1,0 +1,34 @@
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+.venv/
+
+# Uploaded/generated files
+uploads/
+*.log
+
+# Local test files
+tests/__pycache__/
+
+# IDE / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local database / temporary files
+*.sqlite
+*.db
+
+# ML-generated temporary files
+*.tmp
+*.temp
