@@ -1,8 +1,12 @@
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.database import Base, engine
+import app.models
 
 from app.api.auth import router as auth_router
 from app.api.medical import router as medical_router
@@ -29,9 +33,17 @@ ALLOWED_ORIGINS = [
 ALLOWED_ORIGINS = list(dict.fromkeys(ALLOWED_ORIGINS))
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    print("SymptomLens database tables are ready.")
+    yield
+
+
 app = FastAPI(
     title="SymptomLens API",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 
