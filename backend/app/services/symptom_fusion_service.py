@@ -1,109 +1,342 @@
-import json
 from functools import lru_cache
-from pathlib import Path
-
-import numpy as np
 
 
-MODEL_NAME = "NeuML/biomedbert-small-embeddings"
-
-BASE_DIR = Path(__file__).resolve().parents[3]
-DATA_DIR = BASE_DIR / "training" / "data"
-TRAIN_FILE = DATA_DIR / "gretel_train.jsonl"
+CLASSIFIER_WEIGHT = 0.55
+SEMANTIC_WEIGHT = 0.25
+EVIDENCE_WEIGHT = 0.20
 
 
-def _load_jsonl(path: Path):
-    if not path.exists():
-        raise FileNotFoundError(f"Semantic training data not found: {path}")
-
-    with path.open("r", encoding="utf-8") as file:
-        return [json.loads(line) for line in file if line.strip()]
+def normalize_condition_name(condition: str) -> str:
+    return " ".join(
+        condition.strip().lower().split()
+    )
 
 
 @lru_cache(maxsize=1)
-def get_semantic_engine():
-    # Import heavy ML libraries only when semantic analysis is actually used.
-    from sentence_transformers import SentenceTransformer
-    import torch
+def get_classifier():
+    from app.api.predictions import get_model
 
-    # Reduce unnecessary CPU thread memory usage on small Render instances.
-    torch.set_num_threads(1)
+    return get_model()
 
-    rows = _load_jsonl(TRAIN_FILE)
 
-    if not rows:
-        raise RuntimeError("Semantic training dataset is empty.")
+def get_classifier_predictions(
+    text: str,
+) -> dict[str, float]:
+    from app.api.predictions import build_model_text
 
-    texts = [row["input_text"] for row in rows]
-    labels = [row["output_text"] for row in rows]
+    model = get_classifier()
 
-    model = SentenceTransformer(
-        MODEL_NAME,
-        device="cpu",
-    )
+    model_text, _ = build_model_text(text)
 
-    embeddings = model.encode(
-        texts,
-        normalize_embeddings=True,
-        batch_size=8,
-        show_progress_bar=False,
-    )
+    probabilities = model.predict_proba(
+        [model_text]
+    )[0]
+
+    classes = model.classes_
 
     return {
-        "model": model,
-        "embeddings": np.asarray(embeddings, dtype=np.float32),
-        "labels": labels,
+        normalize_condition_name(
+            str(condition)
+        ): float(probability)
+        for condition, probability in zip(
+            classes,
+            probabilities,
+        )
     }
 
 
-def predict_semantic(text: str, top_k: int = 3):
-    cleaned_text = " ".join(text.strip().split())
+def get_semantic_predictions(
+    text: str,
+) -> list[dict]:
+    from app.services.semantic_symptom_service import (
+        predict_semantic,
+    )
+
+    return predict_semantic(
+        text,
+        top_k=22,
+    )
+
+
+def build_semantic_scores(
+    semantic_predictions: list[dict],
+) -> dict[str, float]:
+    if not semantic_predictions:
+        return {}
+
+    similarities = [
+        float(item["similarity"])
+        for item in semantic_predictions
+    ]
+
+    minimum = min(similarities)
+    maximum = max(similarities)
+
+    if maximum == minimum:
+        return {}
+
+    scores = {}
+
+    for item in semantic_predictions:
+        condition = normalize_condition_name(
+            item["condition"]
+        )
+
+        similarity = float(
+            item["similarity"]
+        )
+
+        score = (
+            similarity - minimum
+        ) / (
+            maximum - minimum
+        )
+
+        scores[condition] = score
+
+    return scores
+
+
+def extract_symptoms(
+    text: str,
+) -> set[str]:
+    from app.api.predictions import build_model_text
+
+    _, normalized_symptoms = build_model_text(
+        text
+    )
+
+    return {
+        normalize_condition_name(symptom)
+        for symptom in normalized_symptoms
+    }
+
+
+def build_evidence_score(
+    condition: str,
+    symptoms: set[str],
+) -> float:
+
+    condition = normalize_condition_name(
+        condition
+    )
+
+    condition_evidence = {
+        "migraine": {
+            "headache",
+            "vomiting",
+            "nausea",
+        },
+        "bronchial asthma": {
+            "cough",
+            "difficulty breathing",
+            "shortness of breath",
+            "breathlessness",
+        },
+        "pneumonia": {
+            "cough",
+            "difficulty breathing",
+            "shortness of breath",
+            "fever",
+            "chills",
+            "chest pain",
+        },
+        "allergy": {
+            "itching",
+            "rash",
+            "difficulty breathing",
+            "shortness of breath",
+        },
+        "urinary tract infection": {
+            "burning urination",
+            "frequent urination",
+            "urination",
+        },
+        "malaria": {
+            "fever",
+            "chills",
+            "vomiting",
+            "headache",
+            "muscle pain",
+            "body pain",
+        },
+        "dengue": {
+            "fever",
+            "chills",
+            "headache",
+            "body pain",
+            "muscle pain",
+            "rash",
+        },
+        "fungal infection": {
+            "itching",
+            "rash",
+            "skin",
+        },
+        "psoriasis": {
+            "itching",
+            "rash",
+            "skin",
+        },
+        "typhoid": {
+            "fever",
+            "headache",
+            "vomiting",
+            "abdominal pain",
+            "stomach pain",
+        },
+        "hypertension": {
+            "headache",
+            "dizziness",
+            "chest pain",
+        },
+        "chicken pox": {
+            "rash",
+            "itching",
+            "fever",
+        },
+        "impetigo": {
+            "rash",
+            "skin",
+        },
+        "jaundice": {
+            "fever",
+            "vomiting",
+        },
+        "diabetes": {
+            "frequent urination",
+            "urination",
+        },
+        "common cold": {
+            "cough",
+            "headache",
+        },
+        "drug reaction": {
+            "rash",
+            "itching",
+        },
+    }
+
+    expected = condition_evidence.get(
+        condition
+    )
+
+    if not expected:
+        return 0.0
+
+    matched = expected.intersection(
+        symptoms
+    )
+
+    if not matched:
+        return 0.0
+
+    return (
+        len(matched) / len(expected)
+    )
+
+
+def predict_fused(
+    text: str,
+    top_k: int = 3,
+) -> list[dict]:
+    cleaned_text = " ".join(
+        text.strip().split()
+    )
 
     if not cleaned_text:
         return []
 
-    engine = get_semantic_engine()
+    classifier_scores = (
+        get_classifier_predictions(
+            cleaned_text
+        )
+    )
 
-    model = engine["model"]
-    train_embeddings = engine["embeddings"]
-    train_labels = engine["labels"]
+    semantic_predictions = (
+        get_semantic_predictions(
+            cleaned_text
+        )
+    )
 
-    query_embedding = model.encode(
-        [cleaned_text],
-        normalize_embeddings=True,
-        show_progress_bar=False,
-    )[0]
+    semantic_scores = (
+        build_semantic_scores(
+            semantic_predictions
+        )
+    )
 
-    similarities = np.dot(train_embeddings, query_embedding)
+    symptoms = extract_symptoms(
+        cleaned_text
+    )
 
-    unique_labels = list(dict.fromkeys(train_labels))
-    ranked_conditions = []
+    all_conditions = set(
+        classifier_scores
+    )
 
-    for label in unique_labels:
-        indices = [
-            index
-            for index, train_label in enumerate(train_labels)
-            if train_label == label
-        ]
+    all_conditions.update(
+        semantic_scores
+    )
 
-        label_scores = similarities[indices]
+    results = []
 
-        # Use the strongest few matching descriptions for each condition.
-        top_count = min(5, len(label_scores))
-        strongest_scores = np.sort(label_scores)[-top_count:]
+    for condition in all_conditions:
+        classifier_score = (
+            classifier_scores.get(
+                condition,
+                0.0,
+            )
+        )
 
-        condition_similarity = float(np.mean(strongest_scores))
+        semantic_score = (
+            semantic_scores.get(
+                condition,
+                0.0,
+            )
+        )
 
-        ranked_conditions.append(
+        evidence_score = (
+            build_evidence_score(
+                condition,
+                symptoms,
+            )
+        )
+
+        fused_score = (
+            CLASSIFIER_WEIGHT
+            * classifier_score
+            + SEMANTIC_WEIGHT
+            * semantic_score
+            + EVIDENCE_WEIGHT
+            * evidence_score
+        )
+
+        results.append(
             {
-                "condition": label,
-                "similarity": condition_similarity,
+                "condition": condition,
+                "classifier_score": round(
+                    classifier_score,
+                    4,
+                ),
+                "semantic_score": round(
+                    semantic_score,
+                    4,
+                ),
+                "evidence_score": round(
+                    evidence_score,
+                    4,
+                ),
+                "fused_score": round(
+                    fused_score,
+                    4,
+                ),
             }
         )
 
-    ranked_conditions.sort(
-        key=lambda item: item["similarity"],
+    results.sort(
+        key=lambda item: item[
+            "fused_score"
+        ],
         reverse=True,
     )
 
-    return ranked_conditions[:top_k]
+    return results[:top_k]
