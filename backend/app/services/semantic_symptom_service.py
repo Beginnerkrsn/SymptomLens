@@ -3,9 +3,9 @@ from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-
-MODEL_NAME = "NeuML/biomedbert-small-embeddings"
 
 BASE_DIR = Path(__file__).resolve().parents[3]
 DATA_DIR = BASE_DIR / "training" / "data"
@@ -14,85 +14,125 @@ TRAIN_FILE = DATA_DIR / "gretel_train.jsonl"
 
 def _load_jsonl(path: Path):
     if not path.exists():
-        raise FileNotFoundError(f"Semantic training data not found: {path}")
+        raise FileNotFoundError(
+            f"Semantic training data not found: {path}"
+        )
 
-    with path.open("r", encoding="utf-8") as file:
-        return [json.loads(line) for line in file if line.strip()]
+    with path.open(
+        "r",
+        encoding="utf-8",
+    ) as file:
+        return [
+            json.loads(line)
+            for line in file
+            if line.strip()
+        ]
 
 
 @lru_cache(maxsize=1)
 def get_semantic_engine():
-    # Import heavy ML libraries only when semantic analysis is actually used.
-    from sentence_transformers import SentenceTransformer
-    import torch
-
-    # Reduce unnecessary CPU thread memory usage on small Render instances.
-    torch.set_num_threads(1)
-
     rows = _load_jsonl(TRAIN_FILE)
 
     if not rows:
-        raise RuntimeError("Semantic training dataset is empty.")
+        raise RuntimeError(
+            "Semantic training dataset is empty."
+        )
 
-    texts = [row["input_text"] for row in rows]
-    labels = [row["output_text"] for row in rows]
+    texts = [
+        str(row["input_text"])
+        for row in rows
+        if row.get("input_text")
+    ]
 
-    model = SentenceTransformer(
-        MODEL_NAME,
-        device="cpu",
+    labels = [
+        str(row["output_text"])
+        for row in rows
+        if row.get("input_text")
+    ]
+
+    if not texts:
+        raise RuntimeError(
+            "Semantic training dataset contains no usable text."
+        )
+
+    vectorizer = TfidfVectorizer(
+        lowercase=True,
+        ngram_range=(1, 2),
+        max_features=5000,
+        sublinear_tf=True,
     )
 
-    embeddings = model.encode(
-        texts,
-        normalize_embeddings=True,
-        batch_size=8,
-        show_progress_bar=False,
+    train_matrix = vectorizer.fit_transform(
+        texts
     )
 
     return {
-        "model": model,
-        "embeddings": np.asarray(embeddings, dtype=np.float32),
+        "vectorizer": vectorizer,
+        "train_matrix": train_matrix,
         "labels": labels,
     }
 
 
-def predict_semantic(text: str, top_k: int = 3):
-    cleaned_text = " ".join(text.strip().split())
+def predict_semantic(
+    text: str,
+    top_k: int = 3,
+):
+    cleaned_text = " ".join(
+        text.strip().split()
+    )
 
     if not cleaned_text:
         return []
 
     engine = get_semantic_engine()
 
-    model = engine["model"]
-    train_embeddings = engine["embeddings"]
+    vectorizer = engine["vectorizer"]
+    train_matrix = engine["train_matrix"]
     train_labels = engine["labels"]
 
-    query_embedding = model.encode(
-        [cleaned_text],
-        normalize_embeddings=True,
-        show_progress_bar=False,
-    )[0]
+    query_matrix = vectorizer.transform(
+        [cleaned_text]
+    )
 
-    similarities = np.dot(train_embeddings, query_embedding)
+    similarities = cosine_similarity(
+        train_matrix,
+        query_matrix,
+    ).ravel()
 
-    unique_labels = list(dict.fromkeys(train_labels))
+    unique_labels = list(
+        dict.fromkeys(train_labels)
+    )
+
     ranked_conditions = []
 
     for label in unique_labels:
         indices = [
             index
-            for index, train_label in enumerate(train_labels)
+            for index, train_label in enumerate(
+                train_labels
+            )
             if train_label == label
         ]
 
-        label_scores = similarities[indices]
+        if not indices:
+            continue
 
-        # Use the strongest few matching descriptions for each condition.
-        top_count = min(5, len(label_scores))
-        strongest_scores = np.sort(label_scores)[-top_count:]
+        label_scores = similarities[
+            indices
+        ]
 
-        condition_similarity = float(np.mean(strongest_scores))
+        top_count = min(
+            5,
+            len(label_scores),
+        )
+
+        strongest_scores = np.sort(
+            label_scores
+        )[-top_count:]
+
+        condition_similarity = float(
+            np.mean(strongest_scores)
+        )
 
         ranked_conditions.append(
             {
