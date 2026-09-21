@@ -30,7 +30,6 @@ class SymptomPrediction(Base):
             ondelete="CASCADE",
         ),
         nullable=False,
-        
     )
 
     input_text: Mapped[str] = mapped_column(

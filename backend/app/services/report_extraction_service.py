@@ -1,19 +1,19 @@
 from pathlib import Path
 
-from app.services.document_service import (
-    extract_pdf_text,
-    is_text_sufficient,
-    render_pdf_pages,
-)
-from app.services.ocr_service import (
-    ocr_image,
-    ocr_image_file,
-)
-
 
 def extract_report_text(
     file_path: str,
 ) -> dict:
+
+    from app.services.document_service import (
+        extract_pdf_text,
+        is_text_sufficient,
+        render_pdf_pages,
+    )
+    from app.services.ocr_service import (
+        ocr_image,
+        ocr_image_file,
+    )
 
     path = Path(file_path)
 
@@ -21,7 +21,6 @@ def extract_report_text(
 
     if extension == ".pdf":
 
-        # First try normal PDF text extraction.
         native_text = extract_pdf_text(
             file_path
         )
@@ -34,7 +33,6 @@ def extract_report_text(
                 "method": "pdf_text",
             }
 
-        # If it's a scanned PDF, use OCR.
         page_texts = []
 
         for page_image in render_pdf_pages(

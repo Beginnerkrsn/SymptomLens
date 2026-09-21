@@ -68,9 +68,6 @@ def normalize_finding(text: str) -> str:
             text = text[len(prefix):].strip()
             break
 
-    # Remove numbered prefixes such as:
-    # "1. Finding..."
-    # "2) Finding..."
     text = re.sub(
         r"^\d+[\.\)]\s*",
         "",
@@ -81,21 +78,15 @@ def normalize_finding(text: str) -> str:
 
 
 def remove_report_metadata(text: str) -> str:
-    """
-    Remove obvious report-header metadata while preserving
-    useful clinical information.
-    """
-
     text = " ".join(text.split()).strip()
-
     lower = text.lower()
 
-    # If the OCR sentence contains a "Clinical Information:"
-    # section, preserve only the clinical information after it.
     clinical_marker = "clinical information:"
 
     if clinical_marker in lower:
-        index = lower.find(clinical_marker)
+        index = lower.find(
+            clinical_marker
+        )
 
         text = text[
             index + len(clinical_marker):
@@ -103,7 +94,6 @@ def remove_report_metadata(text: str) -> str:
 
         return text
 
-    # Remove obvious fictional/demo/test headers.
     metadata_phrases = [
         "sample medical report",
         "fictional data",
@@ -121,10 +111,6 @@ def remove_report_metadata(text: str) -> str:
 
 
 def _finding_key(text: str) -> str:
-    """
-    Create a normalized key for duplicate detection.
-    """
-
     text = text.lower()
 
     replacements = {
@@ -134,11 +120,13 @@ def _finding_key(text: str) -> str:
         "the ": "",
         "patient has": "",
         "patient is": "",
-        "approximately ": "",
     }
 
     for old, new in replacements.items():
-        text = text.replace(old, new)
+        text = text.replace(
+            old,
+            new,
+        )
 
     text = re.sub(
         r"[^a-z0-9]+",
@@ -155,11 +143,6 @@ def _is_substantially_duplicate(
     candidate_key: str,
     existing_key: str,
 ) -> bool:
-    """
-    Treat similar wording as duplicate when the shorter
-    normalized phrase is largely contained in the longer one.
-    """
-
     if candidate_key == existing_key:
         return True
 
@@ -183,12 +166,17 @@ def _is_substantially_duplicate(
         candidate_words & existing_words
     )
 
-    similarity = intersection / smaller
+    similarity = (
+        intersection / smaller
+    )
 
     return similarity >= 0.75
 
 
-def extract_key_findings(text: str) -> list[str]:
+def extract_key_findings(
+    text: str,
+) -> list[str]:
+
     finding_terms = [
         "enlarged",
         "regurgitation",
@@ -228,7 +216,6 @@ def extract_key_findings(text: str) -> list[str]:
             sentence
         )
 
-        # Remove report metadata/header material.
         cleaned = remove_report_metadata(
             cleaned
         )
@@ -261,7 +248,6 @@ def extract_key_findings(text: str) -> list[str]:
             continue
 
         finding_keys.append(key)
-
         findings.append(cleaned)
 
     return findings[:15]

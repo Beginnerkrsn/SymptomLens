@@ -13,12 +13,6 @@ from app.core.password_reset import (
     generate_reset_token,
     hash_reset_token,
 )
-from app.core.security import (
-    create_access_token,
-    decode_access_token,
-    hash_password,
-    verify_password,
-)
 from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
 from app.schemas.auth import (
@@ -32,19 +26,26 @@ from app.schemas.auth import (
 
 load_dotenv()
 
+
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
 )
 
-bearer_scheme = HTTPBearer(auto_error=False)
+
+bearer_scheme = HTTPBearer(
+    auto_error=False
+)
+
 
 FRONTEND_BASE_URL = os.getenv(
     "FRONTEND_BASE_URL",
     "http://localhost:5173",
 ).rstrip("/")
 
+
 RESET_TOKEN_EXPIRE_MINUTES = 30
+
 
 DEV_ENVIRONMENT = os.getenv(
     "ENVIRONMENT",
@@ -65,8 +66,15 @@ def register_user(
     payload: RegisterRequest,
     db: Session = Depends(get_db),
 ):
+    from app.core.security import (
+        create_access_token,
+        hash_password,
+    )
+
     full_name = payload.full_name.strip()
-    email = str(payload.email).strip().lower()
+    email = str(
+        payload.email
+    ).strip().lower()
 
     if len(full_name) < 2:
         raise HTTPException(
@@ -81,13 +89,17 @@ def register_user(
         )
 
     existing_user = db.scalar(
-        select(User).where(User.email == email)
+        select(User).where(
+            User.email == email
+        )
     )
 
     if existing_user:
         raise HTTPException(
             status_code=409,
-            detail="An account with this email already exists.",
+            detail=(
+                "An account with this email already exists."
+            ),
         )
 
     user = User(
@@ -105,12 +117,15 @@ def register_user(
     try:
         db.commit()
         db.refresh(user)
+
     except IntegrityError:
         db.rollback()
 
         raise HTTPException(
             status_code=409,
-            detail="An account with this email already exists.",
+            detail=(
+                "An account with this email already exists."
+            ),
         )
 
     access_token = create_access_token(
@@ -132,10 +147,19 @@ def login_user(
     payload: LoginRequest,
     db: Session = Depends(get_db),
 ):
-    email = str(payload.email).strip().lower()
+    from app.core.security import (
+        create_access_token,
+        verify_password,
+    )
+
+    email = str(
+        payload.email
+    ).strip().lower()
 
     user = db.scalar(
-        select(User).where(User.email == email)
+        select(User).where(
+            User.email == email
+        )
     )
 
     if (
@@ -177,10 +201,14 @@ def forgot_password(
     payload: ForgotPasswordRequest,
     db: Session = Depends(get_db),
 ):
-    email = str(payload.email).strip().lower()
+    email = str(
+        payload.email
+    ).strip().lower()
 
     user = db.scalar(
-        select(User).where(User.email == email)
+        select(User).where(
+            User.email == email
+        )
     )
 
     generic_response = {
@@ -190,27 +218,33 @@ def forgot_password(
         )
     }
 
-    # Never reveal whether an email address is registered.
     if not user or not user.is_active:
         return generic_response
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(
+        timezone.utc
+    )
+
     expires_at = now + timedelta(
         minutes=RESET_TOKEN_EXPIRE_MINUTES
     )
 
-    # Invalidate all previous unused reset tokens.
     db.execute(
         update(PasswordResetToken)
         .where(
-            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.user_id
+            == user.id,
             PasswordResetToken.used_at.is_(None),
         )
-        .values(used_at=now)
+        .values(
+            used_at=now
+        )
     )
 
     raw_token = generate_reset_token()
-    token_hash = hash_reset_token(raw_token)
+    token_hash = hash_reset_token(
+        raw_token
+    )
 
     reset_record = PasswordResetToken(
         user_id=user.id,
@@ -223,12 +257,15 @@ def forgot_password(
 
     try:
         db.commit()
+
     except Exception:
         db.rollback()
 
         raise HTTPException(
             status_code=500,
-            detail="Unable to create a password reset request.",
+            detail=(
+                "Unable to create a password reset request."
+            ),
         )
 
     reset_link = (
@@ -236,16 +273,23 @@ def forgot_password(
         f"/reset-password?token={raw_token}"
     )
 
-    # Development-only helper.
-    # In production this will be replaced by email delivery.
     if DEV_ENVIRONMENT:
         print("")
         print("=" * 70)
-        print("SYMTOMLENS PASSWORD RESET - DEVELOPMENT LINK")
+        print(
+            "SYMPTOMLENS PASSWORD RESET - DEVELOPMENT LINK"
+        )
         print("=" * 70)
-        print(f"User: {user.email}")
-        print(f"Expires in: {RESET_TOKEN_EXPIRE_MINUTES} minutes")
-        print(f"Reset link: {reset_link}")
+        print(
+            f"User: {user.email}"
+        )
+        print(
+            f"Expires in: "
+            f"{RESET_TOKEN_EXPIRE_MINUTES} minutes"
+        )
+        print(
+            f"Reset link: {reset_link}"
+        )
         print("=" * 70)
         print("")
 
@@ -259,7 +303,12 @@ def reset_password(
     payload: ResetPasswordRequest,
     db: Session = Depends(get_db),
 ):
-    if payload.new_password != payload.confirm_password:
+    from app.core.security import hash_password
+
+    if (
+        payload.new_password
+        != payload.confirm_password
+    ):
         raise HTTPException(
             status_code=400,
             detail="Passwords do not match.",
@@ -279,21 +328,30 @@ def reset_password(
     if not reset_record:
         raise HTTPException(
             status_code=400,
-            detail="Invalid or expired password reset link.",
+            detail=(
+                "Invalid or expired password reset link."
+            ),
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(
+        timezone.utc
+    )
 
     if reset_record.used_at is not None:
         raise HTTPException(
             status_code=400,
-            detail="This password reset link has already been used.",
+            detail=(
+                "This password reset link has already "
+                "been used."
+            ),
         )
 
     if reset_record.expires_at <= now:
         raise HTTPException(
             status_code=400,
-            detail="This password reset link has expired.",
+            detail=(
+                "This password reset link has expired."
+            ),
         )
 
     user = db.get(
@@ -304,7 +362,9 @@ def reset_password(
     if not user or not user.is_active:
         raise HTTPException(
             status_code=400,
-            detail="This password reset request is no longer valid.",
+            detail=(
+                "This password reset request is no longer valid."
+            ),
         )
 
     user.password_hash = hash_password(
@@ -315,6 +375,7 @@ def reset_password(
 
     try:
         db.commit()
+
     except Exception:
         db.rollback()
 
@@ -337,6 +398,8 @@ def get_current_user(
     ),
     db: Session = Depends(get_db),
 ) -> User:
+    from app.core.security import decode_access_token
+
     if credentials is None:
         raise HTTPException(
             status_code=401,
@@ -351,7 +414,9 @@ def get_current_user(
             credentials.credentials
         )
 
-        subject = payload.get("sub")
+        subject = payload.get(
+            "sub"
+        )
 
         if not subject:
             raise ValueError(
@@ -360,7 +425,10 @@ def get_current_user(
 
         user_id = int(subject)
 
-    except (ValueError, TypeError):
+    except (
+        ValueError,
+        TypeError,
+    ):
         raise HTTPException(
             status_code=401,
             detail="Invalid authentication token.",
@@ -372,7 +440,9 @@ def get_current_user(
     except Exception:
         raise HTTPException(
             status_code=401,
-            detail="Invalid or expired authentication token.",
+            detail=(
+                "Invalid or expired authentication token."
+            ),
             headers={
                 "WWW-Authenticate": "Bearer"
             },

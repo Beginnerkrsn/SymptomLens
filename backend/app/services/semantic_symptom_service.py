@@ -3,7 +3,6 @@ from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 
 MODEL_NAME = "NeuML/biomedbert-small-embeddings"
@@ -23,6 +22,13 @@ def _load_jsonl(path: Path):
 
 @lru_cache(maxsize=1)
 def get_semantic_engine():
+    # Import heavy ML libraries only when semantic analysis is actually used.
+    from sentence_transformers import SentenceTransformer
+    import torch
+
+    # Reduce unnecessary CPU thread memory usage on small Render instances.
+    torch.set_num_threads(1)
+
     rows = _load_jsonl(TRAIN_FILE)
 
     if not rows:
@@ -31,12 +37,15 @@ def get_semantic_engine():
     texts = [row["input_text"] for row in rows]
     labels = [row["output_text"] for row in rows]
 
-    model = SentenceTransformer(MODEL_NAME)
+    model = SentenceTransformer(
+        MODEL_NAME,
+        device="cpu",
+    )
 
     embeddings = model.encode(
         texts,
         normalize_embeddings=True,
-        batch_size=32,
+        batch_size=8,
         show_progress_bar=False,
     )
 

@@ -20,23 +20,30 @@ load_dotenv()
 FRONTEND_BASE_URL = os.getenv(
     "FRONTEND_BASE_URL",
     "http://localhost:5173",
+).rstrip("/")
+
+
+ALLOWED_ORIGINS = list(
+    dict.fromkeys(
+        [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            FRONTEND_BASE_URL,
+        ]
+    )
 )
-
-
-ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    FRONTEND_BASE_URL,
-]
-
-
-ALLOWED_ORIGINS = list(dict.fromkeys(ALLOWED_ORIGINS))
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    print("SymptomLens database tables are ready.")
+    Base.metadata.create_all(
+        bind=engine
+    )
+
+    print(
+        "SymptomLens database tables are ready."
+    )
+
     yield
 
 
@@ -78,6 +85,14 @@ app.include_router(
     xray_router,
     prefix="/api",
 )
+
+
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "service": "SymptomLens API",
+    }
 
 
 @app.get("/api/health")

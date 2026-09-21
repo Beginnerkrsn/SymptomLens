@@ -1,23 +1,10 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import joblib
-
-from app.services.medical_text_service import (
-    clean_medical_text,
-)
-from app.services.report_extraction_service import (
-    extract_report_text,
-)
-from app.services.specialty_evidence_service import (
-    score_specialties,
-)
-from app.services.clinical_findings_service import (
-    extract_key_findings,
-    extract_measurements,
-)
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -30,13 +17,16 @@ MEDICAL_SPECIALTY_MODEL_FILE = (
 )
 
 
-def load_model(model_path: Path):
-    if not model_path.exists():
+@lru_cache(maxsize=1)
+def load_model(model_path: str):
+    path = Path(model_path)
+
+    if not path.exists():
         raise FileNotFoundError(
-            f"Model not found: {model_path}"
+            f"Model not found: {path}"
         )
 
-    return joblib.load(model_path)
+    return joblib.load(path)
 
 
 def get_top_predictions(
@@ -176,7 +166,6 @@ def combine_specialty_evidence(
 ) -> list[dict[str, Any]]:
     combined = {}
 
-    # ML evidence
     for prediction in ml_predictions:
         label = prediction["label"]
 
@@ -187,7 +176,6 @@ def combine_specialty_evidence(
             "evidence": [],
         }
 
-    # Clinical evidence
     for item in evidence_predictions:
         specialty = item["specialty"]
 
@@ -237,7 +225,20 @@ def analyze_medical_report(
     file_path: str,
 ) -> dict[str, Any]:
 
-    # 1. Extract text
+    from app.services.clinical_findings_service import (
+        extract_key_findings,
+        extract_measurements,
+    )
+    from app.services.medical_text_service import (
+        clean_medical_text,
+    )
+    from app.services.report_extraction_service import (
+        extract_report_text,
+    )
+    from app.services.specialty_evidence_service import (
+        score_specialties,
+    )
+
     extraction = extract_report_text(
         file_path
     )
@@ -247,7 +248,6 @@ def analyze_medical_report(
         "",
     )
 
-    # 2. Clean text
     text = clean_medical_text(
         raw_text
     )
@@ -258,12 +258,10 @@ def analyze_medical_report(
             "was extracted from the document."
         )
 
-    # 3. Detect report type
     report_type = detect_report_type(
         text
     )
 
-    # 4. Extract structured clinical information
     findings = extract_key_findings(
         text
     )
@@ -272,9 +270,8 @@ def analyze_medical_report(
         text
     )
 
-    # 5. ML specialty prediction
     specialty_model = load_model(
-        MEDICAL_SPECIALTY_MODEL_FILE
+        str(MEDICAL_SPECIALTY_MODEL_FILE)
     )
 
     ml_predictions = get_top_predictions(
@@ -283,12 +280,10 @@ def analyze_medical_report(
         top_k=5,
     )
 
-    # 6. Clinical evidence
     evidence_predictions = score_specialties(
         text
     )
 
-    # 7. Combine ML + clinical evidence
     combined_predictions = combine_specialty_evidence(
         ml_predictions,
         evidence_predictions,
@@ -307,36 +302,28 @@ def analyze_medical_report(
 
     return {
         "report_type": report_type,
-
         "extraction_method": extraction.get(
             "method",
             "unknown",
         ),
-
         "text_length": len(text),
-
         "primary_specialty": top_prediction[
             "specialty"
         ],
-
         "routing_score": round(
             routing_score,
             4,
         ),
-
         "routing_score_percentage": round(
             routing_score * 100,
             2,
         ),
-
         "confidence_level": confidence_level(
             routing_score
         ),
-
         "requires_review": (
             routing_score < 0.45
         ),
-
         "specialties": [
             {
                 "specialty": item["specialty"],
@@ -360,10 +347,7 @@ def analyze_medical_report(
             }
             for item in combined_predictions[:5]
         ],
-
         "findings": findings,
-
         "measurements": measurements,
-
         "text_preview": text[:1500],
     }

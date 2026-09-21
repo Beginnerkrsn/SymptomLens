@@ -17,9 +17,6 @@ from app.api.auth import get_current_user
 from app.core.database import get_db
 from app.models.medical_report import MedicalReport
 from app.models.user import User
-from app.services.full_medical_analysis_service import (
-    analyze_report_and_match_physicians,
-)
 
 
 router = APIRouter(
@@ -111,6 +108,10 @@ async def analyze_medical_report(
         ) as temporary_file:
             temporary_file.write(contents)
             temporary_path = temporary_file.name
+
+        from app.services.full_medical_analysis_service import (
+            analyze_report_and_match_physicians,
+        )
 
         result = analyze_report_and_match_physicians(
             file_path=temporary_path,

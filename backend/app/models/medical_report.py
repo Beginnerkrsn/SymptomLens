@@ -28,7 +28,6 @@ class MedicalReport(Base):
             ondelete="CASCADE",
         ),
         nullable=False,
-        
     )
 
     file_name: Mapped[str] = mapped_column(

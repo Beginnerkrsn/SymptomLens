@@ -1,7 +1,9 @@
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import pymupdf
-from PIL import Image
+
+if TYPE_CHECKING:
+    from PIL import Image
 
 
 SUPPORTED_EXTENSIONS = {
@@ -23,6 +25,8 @@ def validate_file_extension(filename: str) -> None:
 
 
 def extract_pdf_text(file_path: str) -> str:
+    import pymupdf
+
     document = pymupdf.open(file_path)
 
     pages = []
@@ -41,6 +45,9 @@ def extract_pdf_text(file_path: str) -> str:
 
 
 def render_pdf_pages(file_path: str):
+    import pymupdf
+    from PIL import Image
+
     document = pymupdf.open(file_path)
 
     try:
@@ -48,9 +55,9 @@ def render_pdf_pages(file_path: str):
             page = document.load_page(page_number)
 
             pixmap = page.get_pixmap(
-    matrix=pymupdf.Matrix(2, 2),
-    alpha=False,
-)
+                matrix=pymupdf.Matrix(2, 2),
+                alpha=False,
+            )
 
             image = Image.frombytes(
                 "RGB",
@@ -67,8 +74,14 @@ def render_pdf_pages(file_path: str):
         document.close()
 
 
-def open_image(file_path: str) -> Image.Image:
-    return Image.open(file_path).convert("RGB")
+def open_image(
+    file_path: str,
+) -> "Image.Image":
+    from PIL import Image
+
+    return Image.open(
+        file_path
+    ).convert("RGB")
 
 
 def is_text_sufficient(
@@ -78,6 +91,8 @@ def is_text_sufficient(
     if not text:
         return False
 
-    cleaned = " ".join(text.split())
+    cleaned = " ".join(
+        text.split()
+    )
 
     return len(cleaned) >= minimum_characters

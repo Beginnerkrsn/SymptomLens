@@ -3,15 +3,22 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import pytesseract
-from PIL import Image
+
+if TYPE_CHECKING:
+    from PIL import Image
 
 
 TESSERACT_CANDIDATES = [
-    Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe"),
-    Path(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"),
+    Path(
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    ),
+    Path(
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"
+    ),
 ]
+
 
 if os.environ.get("LOCALAPPDATA"):
     TESSERACT_CANDIDATES.append(
@@ -20,12 +27,14 @@ if os.environ.get("LOCALAPPDATA"):
         / "tesseract.exe"
     )
 
+
 if os.environ.get("PROGRAMFILES"):
     TESSERACT_CANDIDATES.append(
         Path(os.environ["PROGRAMFILES"])
         / "Tesseract-OCR"
         / "tesseract.exe"
     )
+
 
 if os.environ.get("PROGRAMFILES(X86)"):
     TESSERACT_CANDIDATES.append(
@@ -36,19 +45,14 @@ if os.environ.get("PROGRAMFILES(X86)"):
 
 
 def find_tesseract() -> Path | None:
-    """
-    Find the Tesseract executable using:
-    1. TESSERACT_CMD environment variable
-    2. System PATH
-    3. Common Windows installation locations
-    """
-
     configured_path = os.environ.get(
         "TESSERACT_CMD"
     )
 
     if configured_path:
-        path = Path(configured_path).expanduser()
+        path = Path(
+            configured_path
+        ).expanduser()
 
         if path.is_file():
             return path
@@ -66,7 +70,10 @@ def find_tesseract() -> Path | None:
     seen = set()
 
     for candidate in TESSERACT_CANDIDATES:
-        candidate = candidate.resolve()
+        try:
+            candidate = candidate.resolve()
+        except OSError:
+            continue
 
         if candidate in seen:
             continue
@@ -80,10 +87,7 @@ def find_tesseract() -> Path | None:
 
 
 def configure_tesseract() -> Path:
-    """
-    Configure pytesseract with the first available
-    Tesseract executable.
-    """
+    import pytesseract
 
     executable = find_tesseract()
 
@@ -104,12 +108,10 @@ def configure_tesseract() -> Path:
 
 
 def ocr_image(
-    image: Image.Image,
+    image: "Image.Image",
     language: str = "eng",
 ) -> str:
-    """
-    Extract text from a PIL image using Tesseract OCR.
-    """
+    import pytesseract
 
     configure_tesseract()
 
@@ -118,6 +120,7 @@ def ocr_image(
             image,
             lang=language,
         )
+
     except pytesseract.TesseractNotFoundError as exc:
         raise RuntimeError(
             "Tesseract OCR could not be started. "
@@ -125,11 +128,13 @@ def ocr_image(
             "and that TESSERACT_CMD points to "
             "tesseract.exe."
         ) from exc
+
     except pytesseract.TesseractError as exc:
         raise RuntimeError(
             f"Tesseract OCR failed while processing "
             f"the image: {exc}"
         ) from exc
+
     except OSError as exc:
         raise RuntimeError(
             f"OCR processing failed: {exc}"
@@ -142,9 +147,7 @@ def ocr_image_file(
     file_path: str | Path,
     language: str = "eng",
 ) -> str:
-    """
-    Open an image file safely and run OCR.
-    """
+    from PIL import Image
 
     path = Path(file_path)
 

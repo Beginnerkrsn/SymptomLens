@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.services.symptom_fusion_service import predict_fused
+
 from app.api.auth import get_current_user
 from app.core.database import get_db
 from app.models.symptom_prediction import SymptomPrediction
@@ -38,115 +38,30 @@ class SymptomRequest(BaseModel):
 
 
 MEDICAL_TERMS = {
-    "pain",
-    "ache",
-    "aches",
-    "fever",
-    "chills",
-    "cough",
-    "cold",
-    "sneeze",
-    "sneezing",
-    "headache",
-    "migraine",
-    "dizziness",
-    "dizzy",
-    "nausea",
-    "vomiting",
-    "vomit",
-    "diarrhea",
-    "diarrhoea",
-    "constipation",
-    "fatigue",
-    "weakness",
-    "weak",
-    "tired",
-    "tiredness",
-    "rash",
-    "itch",
-    "itching",
-    "swelling",
-    "bleeding",
-    "blood",
-    "breathing",
-    "breath",
-    "shortness",
-    "chest",
-    "stomach",
-    "tummy",
-    "belly",
-    "abdomen",
-    "abdominal",
-    "back",
-    "throat",
-    "urine",
-    "urination",
-    "urinary",
-    "burning",
-    "infection",
-    "discharge",
-    "sore",
-    "soreness",
-    "temperature",
-    "appetite",
-    "weight",
-    "sleep",
-    "seizure",
-    "seizures",
-    "fainting",
-    "faint",
-    "heartbeat",
-    "palpitations",
-    "pressure",
-    "vision",
-    "blurred",
-    "hearing",
-    "joint",
-    "muscle",
-    "breast",
-    "skin",
-    "lesion",
-    "ulcer",
-    "painful",
-    "swollen",
-    "yellow",
-    "jaundice",
-    "thirst",
-    "dehydration",
-    "drowsiness",
-    "numbness",
-    "tingling",
-    "cramp",
-    "cramps",
+    "pain", "ache", "aches", "fever", "chills", "cough", "cold",
+    "sneeze", "sneezing", "headache", "migraine", "dizziness", "dizzy",
+    "nausea", "vomiting", "vomit", "diarrhea", "diarrhoea",
+    "constipation", "fatigue", "weakness", "weak", "tired", "tiredness",
+    "rash", "itch", "itching", "swelling", "bleeding", "blood",
+    "breathing", "breath", "shortness", "chest", "stomach", "tummy",
+    "belly", "abdomen", "abdominal", "back", "throat", "urine",
+    "urination", "urinary", "burning", "infection", "discharge",
+    "sore", "soreness", "temperature", "appetite", "weight", "sleep",
+    "seizure", "seizures", "fainting", "faint", "heartbeat",
+    "palpitations", "pressure", "vision", "blurred", "hearing",
+    "joint", "muscle", "breast", "skin", "lesion", "ulcer", "painful",
+    "swollen", "yellow", "jaundice", "thirst", "dehydration",
+    "drowsiness", "numbness", "tingling", "cramp", "cramps",
     "breathlessness",
 }
 
 
 ASSOCIATED_SYMPTOM_TERMS = {
-    "fever",
-    "chills",
-    "vomiting",
-    "vomit",
-    "nausea",
-    "diarrhea",
-    "diarrhoea",
-    "cough",
-    "rash",
-    "swelling",
-    "bleeding",
-    "dizziness",
-    "headache",
-    "weakness",
-    "fatigue",
-    "burning",
-    "discharge",
-    "shortness",
-    "breathlessness",
-    "fainting",
-    "faint",
-    "palpitations",
-    "numbness",
-    "tingling",
+    "fever", "chills", "vomiting", "vomit", "nausea", "diarrhea",
+    "diarrhoea", "cough", "rash", "swelling", "bleeding", "dizziness",
+    "headache", "weakness", "fatigue", "burning", "discharge",
+    "shortness", "breathlessness", "fainting", "faint", "palpitations",
+    "numbness", "tingling",
 }
 
 
@@ -167,147 +82,48 @@ MEDICAL_PHRASES = {
 
 
 CONTEXT_TERMS = {
-    "for",
-    "since",
-    "days",
-    "day",
-    "weeks",
-    "week",
-    "months",
-    "month",
-    "hours",
-    "hour",
-    "today",
-    "yesterday",
-    "morning",
-    "night",
-    "severe",
-    "mild",
-    "moderate",
-    "worse",
-    "worsening",
-    "started",
-    "right",
-    "left",
-    "upper",
-    "lower",
-    "center",
-    "centre",
+    "for", "since", "days", "day", "weeks", "week", "months",
+    "month", "hours", "hour", "today", "yesterday", "morning",
+    "night", "severe", "mild", "moderate", "worse", "worsening",
+    "started", "right", "left", "upper", "lower", "center", "centre",
 }
 
 
 PHRASE_EXPANSIONS = [
-    (
-        r"\b(?:very\s+)?tired\b",
-        {
-            "fatigue",
-        },
-    ),
-    (
-        r"\b(?:really\s+)?exhausted\b",
-        {
-            "fatigue",
-        },
-    ),
-    (
-        r"\b(?:no|low)\s+energy\b",
-        {
-            "fatigue",
-        },
-    ),
-    (
-        r"\bworn\s*out\b",
-        {
-            "fatigue",
-        },
-    ),
-    (
-        r"\bstomach\s+pain\b",
-        {
-            "stomach pain",
-            "abdominal pain",
-        },
-    ),
-    (
-        r"\bbelly\s+pain\b",
-        {
-            "belly pain",
-            "abdominal pain",
-        },
-    ),
-    (
-        r"\btummy\s+pain\b",
-        {
-            "tummy pain",
-            "abdominal pain",
-        },
-    ),
+    (r"\b(?:very\s+)?tired\b", {"fatigue"}),
+    (r"\b(?:really\s+)?exhausted\b", {"fatigue"}),
+    (r"\b(?:no|low)\s+energy\b", {"fatigue"}),
+    (r"\bworn\s*out\b", {"fatigue"}),
+    (r"\bstomach\s+pain\b", {"stomach pain", "abdominal pain"}),
+    (r"\bbelly\s+pain\b", {"belly pain", "abdominal pain"}),
+    (r"\btummy\s+pain\b", {"tummy pain", "abdominal pain"}),
     (
         r"\bpain\s+(?:in|around)\s+(?:my\s+)?(?:stomach|belly|tummy)\b",
-        {
-            "stomach pain",
-            "abdominal pain",
-        },
+        {"stomach pain", "abdominal pain"},
     ),
     (
         r"\b(?:head\s+hurts|head\s+is\s+hurting|head\s+pain)\b",
-        {
-            "headache",
-        },
+        {"headache"},
     ),
-    (
-        r"\b(?:feel|feeling)\s+dizzy\b",
-        {
-            "dizziness",
-            "dizzy",
-        },
-    ),
-    (
-        r"\blight[-\s]?headed\b",
-        {
-            "dizziness",
-        },
-    ),
-    (
-        r"\b(?:feel|feeling)\s+faint\b",
-        {
-            "fainting",
-            "faint",
-        },
-    ),
+    (r"\b(?:feel|feeling)\s+dizzy\b", {"dizziness", "dizzy"}),
+    (r"\blight[-\s]?headed\b", {"dizziness"}),
+    (r"\b(?:feel|feeling)\s+faint\b", {"fainting", "faint"}),
     (
         r"\b(?:throwing\s+up|throw\s+up|puking|puke)\b",
-        {
-            "vomiting",
-            "vomit",
-        },
+        {"vomiting", "vomit"},
     ),
     (
         r"\bfeel(?:ing)?\s+like\s+(?:i\s+am\s+going\s+to\s+)?(?:throw\s+up|vomit)\b",
-        {
-            "nausea",
-            "vomiting",
-        },
+        {"nausea", "vomiting"},
     ),
-    (
-        r"\b(?:feel|feeling)\s+sick\b",
-        {
-            "nausea",
-        },
-    ),
+    (r"\b(?:feel|feeling)\s+sick\b", {"nausea"}),
     (
         r"\b(?:sore\s+throat|throat\s+hurts|throat\s+is\s+hurting)\b",
-        {
-            "sore throat",
-            "throat",
-        },
+        {"sore throat", "throat"},
     ),
     (
         r"\b(?:can't|cannot|can not)\s+breathe\b",
-        {
-            "shortness of breath",
-            "breathlessness",
-        },
+        {"shortness of breath", "breathlessness"},
     ),
     (
         r"\b(?:hard|difficult|difficulty|trouble)\s+(?:to\s+)?breathe\b",
@@ -318,138 +134,78 @@ PHRASE_EXPANSIONS = [
         },
     ),
     (
-    r"\b(?:struggling|struggle)\s+to\s+breathe\b",
-    {
-        "difficulty breathing",
-        "shortness of breath",
-        "breathlessness",
-    },
-),
-(
-    r"\b(?:coughing|cough)\b",
-    {
-        "cough",
-    },
-),
-    (
-        r"\b(?:short\s+of\s+breath|out\s+of\s+breath)\b",
+        r"\b(?:struggling|struggle)\s+to\s+breathe\b",
         {
+            "difficulty breathing",
             "shortness of breath",
             "breathlessness",
         },
     ),
+    (r"\b(?:coughing|cough)\b", {"cough"}),
+    (
+        r"\b(?:short\s+of\s+breath|out\s+of\s+breath)\b",
+        {"shortness of breath", "breathlessness"},
+    ),
     (
         r"\b(?:chest\s+hurts|chest\s+is\s+hurting|pain\s+in\s+my\s+chest)\b",
-        {
-            "chest pain",
-            "chest",
-            "pain",
-        },
+        {"chest pain", "chest", "pain"},
     ),
     (
         r"\b(?:back\s+hurts|back\s+is\s+hurting|pain\s+in\s+my\s+back)\b",
-        {
-            "back pain",
-            "back",
-            "pain",
-        },
+        {"back pain", "back", "pain"},
     ),
     (
         r"\b(?:joint\s+pain|joints\s+hurt)\b",
-        {
-            "joint pain",
-            "joint",
-            "pain",
-        },
+        {"joint pain", "joint", "pain"},
     ),
     (
         r"\b(?:muscle\s+pain|muscles\s+hurt|body\s+aches?)\b",
-        {
-            "muscle pain",
-            "muscle",
-            "body pain",
-            "ache",
-        },
+        {"muscle pain", "muscle", "body pain", "ache"},
     ),
     (
         r"\b(?:runny\s+nose|nose\s+is\s+running)\b",
-        {
-            "runny nose",
-            "cold",
-        },
+        {"runny nose", "cold"},
     ),
     (
         r"\b(?:blocked\s+nose|stuffy\s+nose|nose\s+is\s+blocked)\b",
-        {
-            "nasal congestion",
-            "cold",
-        },
+        {"nasal congestion", "cold"},
     ),
-    (
-        r"\b(?:loose\s+motions?|loose\s+stools?)\b",
-        {
-            "diarrhea",
-        },
-    ),
+    (r"\b(?:loose\s+motions?|loose\s+stools?)\b", {"diarrhea"}),
     (
         r"\b(?:burning|pain)\s+(?:when|while)\s+(?:i\s+)?(?:pee|urinate|urinating)\b",
-        {
-            "burning urination",
-            "urination",
-        },
+        {"burning urination", "urination"},
     ),
     (
-    r"\b(?:(?:frequently|often|constantly)\s+(?:need\s+to\s+)?(?:urinate|pee|pass\s+urine)|(?:need\s+to\s+)?(?:urinate|pee|pass\s+urine)\s+(?:frequently|often|constantly))\b",
-    {
-        "frequent urination",
-        "urination",
-    },
-),
+        r"\b(?:(?:frequently|often|constantly)\s+(?:need\s+to\s+)?(?:urinate|pee|pass\s+urine)|(?:need\s+to\s+)?(?:urinate|pee|pass\s+urine)\s+(?:frequently|often|constantly))\b",
+        {"frequent urination", "urination"},
+    ),
     (
         r"\b(?:pee|urinate|urinating)\s+(?:a\s+lot|very\s+often)\b",
-        {
-            "frequent urination",
-            "urination",
-        },
+        {"frequent urination", "urination"},
     ),
     (
         r"\b(?:yellow\s+eyes?|yellow\s+skin)\b",
-        {
-            "jaundice",
-            "yellow",
-        },
+        {"jaundice", "yellow"},
     ),
     (
         r"\b(?:skin\s+is\s+itchy|skin\s+feels\s+itchy)\b",
-        {
-            "itching",
-            "skin",
-        },
+        {"itching", "skin"},
     ),
     (
         r"\b(?:heart\s+is\s+racing|heart\s+racing|heart\s+is\s+pounding)\b",
-        {
-            "palpitations",
-            "heartbeat",
-        },
+        {"palpitations", "heartbeat"},
     ),
     (
         r"\b(?:high\s+temperature|temperature\s+is\s+high)\b",
-        {
-            "fever",
-        },
+        {"fever"},
     ),
     (
         r"\b(?:shivering|shaking\s+with\s+cold)\b",
-        {
-            "chills",
-        },
+        {"chills"},
     ),
     (
         r"\b(?:keep\s+sneezing|sneezing\s+a\s+lot)\b",
-        {
-            "sneezing",
-        },
+        {"sneezing"},
     ),
 ]
 
@@ -485,38 +241,12 @@ SPELLING_CORRECTIONS = {
 
 
 SPECIFIC_SINGLE_SYMPTOMS = {
-    "fever",
-    "chills",
-    "cough",
-    "headache",
-    "migraine",
-    "dizziness",
-    "nausea",
-    "vomiting",
-    "diarrhea",
-    "constipation",
-    "fatigue",
-    "weakness",
-    "rash",
-    "itching",
-    "swelling",
-    "breathing",
-    "breathlessness",
-    "shortness",
-    "chest",
-    "stomach",
-    "abdominal",
-    "back",
-    "throat",
-    "urination",
-    "burning",
-    "palpitations",
-    "vision",
-    "joint",
-    "muscle",
-    "jaundice",
-    "numbness",
-    "tingling",
+    "fever", "chills", "cough", "headache", "migraine", "dizziness",
+    "nausea", "vomiting", "diarrhea", "constipation", "fatigue",
+    "weakness", "rash", "itching", "swelling", "breathing",
+    "breathlessness", "shortness", "chest", "stomach", "abdominal",
+    "back", "throat", "urination", "burning", "palpitations",
+    "vision", "joint", "muscle", "jaundice", "numbness", "tingling",
 }
 
 
@@ -571,12 +301,6 @@ def normalize_input(text: str) -> str:
 def build_model_text(
     text: str,
 ) -> tuple[str, list[str]]:
-    """
-    Preserve the user's original language while adding
-    controlled symptom terms that the trained NLP model
-    is more likely to recognize.
-    """
-
     lower_text = text.lower()
 
     symptom_terms = set()
@@ -607,7 +331,6 @@ def build_model_text(
             )
         )
 
-    # Add direct medical words already present.
     symptom_terms.update(
         tokens & MEDICAL_TERMS
     )
@@ -686,38 +409,12 @@ def contains_obvious_non_medical_content(
 def assess_input_information(
     text: str,
 ) -> tuple[bool, str]:
-    """
-    Be permissive with natural human descriptions.
-
-    The old gate required several medical terms before
-    allowing the model to run. That can reject perfectly
-    normal descriptions such as:
-        "I have a headache"
-        "my tummy hurts"
-        "I feel dizzy"
-
-    We now allow the trained model to attempt prediction
-    whenever there is at least one recognizable symptom,
-    while confidence/review handling remains active.
-    """
-
     tokens = tokenize(text)
 
-    medical_tokens = (
-        tokens & MEDICAL_TERMS
-    )
-
-    specific_tokens = (
-        tokens & SPECIFIC_SINGLE_SYMPTOMS
-    )
-
-    associated_tokens = (
-        tokens & ASSOCIATED_SYMPTOM_TERMS
-    )
-
-    context_tokens = (
-        tokens & CONTEXT_TERMS
-    )
+    medical_tokens = tokens & MEDICAL_TERMS
+    specific_tokens = tokens & SPECIFIC_SINGLE_SYMPTOMS
+    associated_tokens = tokens & ASSOCIATED_SYMPTOM_TERMS
+    context_tokens = tokens & CONTEXT_TERMS
 
     word_count = len(tokens)
 
@@ -956,6 +653,8 @@ def predict_symptoms(
         return result
 
     try:
+        from app.services.symptom_fusion_service import predict_fused
+
         fused_predictions = predict_fused(
             original_text,
             top_k=3,
@@ -1046,10 +745,12 @@ def get_prediction_history(
     current_user: User = Depends(get_current_user),
 ):
     records = db.scalars(
-        select(SymptomPrediction).where(
+        select(SymptomPrediction)
+        .where(
             SymptomPrediction.user_id
             == current_user.id
-        ).order_by(
+        )
+        .order_by(
             SymptomPrediction.created_at.desc()
         )
     ).all()

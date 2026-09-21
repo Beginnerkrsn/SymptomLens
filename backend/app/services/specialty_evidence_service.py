@@ -18,7 +18,6 @@ SPECIALTY_EVIDENCE = {
         "cardiac catheterization": 4,
         "atrial fibrillation": 4,
     },
-
     "Nephrology": {
         "kidney": 2,
         "renal": 2,
@@ -31,7 +30,6 @@ SPECIALTY_EVIDENCE = {
         "nephrology": 4,
         "renal function": 4,
     },
-
     "Gastroenterology": {
         "gastrointestinal": 2,
         "gastric": 2,
@@ -47,7 +45,6 @@ SPECIALTY_EVIDENCE = {
         "intestine": 2,
         "gastroenterology": 4,
     },
-
     "Neurology": {
         "brain": 3,
         "cerebral": 3,
@@ -62,7 +59,6 @@ SPECIALTY_EVIDENCE = {
         "migraine": 3,
         "multiple sclerosis": 4,
     },
-
     "Neurosurgery": {
         "neurosurgery": 4,
         "spinal cord": 3,
@@ -73,7 +69,6 @@ SPECIALTY_EVIDENCE = {
         "craniotomy": 4,
         "spine surgery": 4,
     },
-
     "Orthopedics": {
         "fracture": 4,
         "bone": 2,
@@ -89,7 +84,6 @@ SPECIALTY_EVIDENCE = {
         "wrist": 2,
         "spinal": 2,
     },
-
     "Ophthalmology": {
         "eye": 2,
         "retina": 4,
@@ -100,7 +94,6 @@ SPECIALTY_EVIDENCE = {
         "ophthalmology": 4,
         "visual acuity": 4,
     },
-
     "ENT / Otolaryngology": {
         "ear": 2,
         "nose": 2,
@@ -113,7 +106,6 @@ SPECIALTY_EVIDENCE = {
         "hearing": 3,
         "nasal": 2,
     },
-
     "Obstetrics and Gynecology": {
         "pregnancy": 4,
         "pregnant": 4,
@@ -129,7 +121,6 @@ SPECIALTY_EVIDENCE = {
         "fetus": 4,
         "fetal": 4,
     },
-
     "Hematology / Oncology": {
         "cancer": 4,
         "malignancy": 4,
@@ -143,7 +134,6 @@ SPECIALTY_EVIDENCE = {
         "hemoglobin": 3,
         "platelet": 3,
     },
-
     "Psychiatry / Psychology": {
         "psychiatry": 4,
         "psychology": 4,
@@ -154,7 +144,6 @@ SPECIALTY_EVIDENCE = {
         "suicidal": 4,
         "mental health": 4,
     },
-
     "Pain Management": {
         "pain management": 4,
         "chronic pain": 4,
@@ -162,7 +151,6 @@ SPECIALTY_EVIDENCE = {
         "nerve block": 4,
         "pain clinic": 4,
     },
-
     "General Medicine": {
         "general medicine": 4,
         "internal medicine": 4,

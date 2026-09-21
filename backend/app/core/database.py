@@ -8,15 +8,32 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 load_dotenv()
 
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL"
+)
 
 
 if not DATABASE_URL:
-    DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
-    DB_PORT = os.getenv("DB_PORT", "3306")
-    DB_NAME = os.getenv("DB_NAME", "symptomlens_db")
-    DB_USER = os.getenv("DB_USER", "symptomlens_app")
-    DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+    DB_HOST = os.getenv(
+        "DB_HOST",
+        "127.0.0.1",
+    )
+    DB_PORT = os.getenv(
+        "DB_PORT",
+        "3306",
+    )
+    DB_NAME = os.getenv(
+        "DB_NAME",
+        "symptomlens_db",
+    )
+    DB_USER = os.getenv(
+        "DB_USER",
+        "symptomlens_app",
+    )
+    DB_PASSWORD = os.getenv(
+        "DB_PASSWORD",
+        "",
+    )
 
     if not DB_PASSWORD:
         raise RuntimeError(
@@ -36,6 +53,7 @@ if DATABASE_URL.startswith("postgres://"):
         "postgresql+psycopg2://",
         1,
     )
+
 elif DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace(
         "postgresql://",
@@ -48,6 +66,8 @@ engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=3600,
+    pool_size=1,
+    max_overflow=0,
 )
 
 
