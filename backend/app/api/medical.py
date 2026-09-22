@@ -12,6 +12,7 @@ from fastapi import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.api.auth import get_current_user
 from app.core.database import get_db
@@ -54,6 +55,23 @@ def serialize_medical_report(report: MedicalReport) -> dict:
         "status": report.status,
         "created_at": report.created_at,
     }
+
+
+def run_medical_analysis(
+    file_path: str,
+    location: str | None,
+    max_distance_km: float | None,
+):
+    from app.services.full_medical_analysis_service import (
+        analyze_report_and_match_physicians,
+    )
+
+    return analyze_report_and_match_physicians(
+        file_path=file_path,
+        location=location,
+        max_distance_km=max_distance_km,
+        physician_limit=5,
+    )
 
 
 @router.post("/analyze")
@@ -109,15 +127,11 @@ async def analyze_medical_report(
             temporary_file.write(contents)
             temporary_path = temporary_file.name
 
-        from app.services.full_medical_analysis_service import (
-            analyze_report_and_match_physicians,
-        )
-
-        result = analyze_report_and_match_physicians(
-            file_path=temporary_path,
-            location=location,
-            max_distance_km=max_distance_km,
-            physician_limit=5,
+        result = await run_in_threadpool(
+            run_medical_analysis,
+            temporary_path,
+            location,
+            max_distance_km,
         )
 
         result["file_name"] = filename
